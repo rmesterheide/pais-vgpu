@@ -1,0 +1,48 @@
+# Throw-away VM for NVIDIA's Display Mode Selector (check 1): the tool does not run on ESX, so the card goes into a
+# Linux live VM in passthrough once, the mode is switched, the VM is deleted. These are the settings that mattered in
+# the lab; the rest of the file is what vCenter writes for a plain Ubuntu 64-bit VM. Create the VM in vCenter (EFI,
+# Secure Boot off, 2 vCPU, 8 GB with "Reserve all guest memory", two CD drives, PCI device = the GPU in passthrough)
+# and add the pciPassthru/pciBridge lines under Advanced Parameters if they are missing.
+.encoding = "UTF-8"
+config.version = "8"
+virtualHW.version = "21"
+displayName = "dms-live"
+guestOS = "ubuntu-64"
+firmware = "efi"
+uefi.secureBoot.enabled = "FALSE"             # the live kernel must load the NVIDIA tool's driver path unsigned
+numvcpus = "2"
+memSize = "8192"
+sched.mem.min = "8192"                        # passthrough needs the whole guest memory reserved
+sched.mem.minSize = "8192"
+sched.mem.pin = "TRUE"
+pciPassthru.use64bitMMIO = "TRUE"             # the A5000 has a 32 GB BAR1 in display-off mode
+pciPassthru.64bitMMIOSizeGB = "64"
+pciPassthru0.present = "TRUE"
+pciPassthru0.id = "<pci address of the card, e.g. 0000:c1:00.0>"
+pciPassthru0.deviceId = "0x2231"              # RTX A5000; take yours from esxcli hardware pci list
+pciPassthru0.vendorId = "0x10de"
+pciBridge4.present = "TRUE"                   # PCIe root ports 4 to 7: without them the power-on fails with "No PCIe slot available"
+pciBridge4.virtualDev = "pcieRootPort"
+pciBridge4.functions = "8"
+pciBridge5.present = "TRUE"
+pciBridge5.virtualDev = "pcieRootPort"
+pciBridge5.functions = "8"
+pciBridge6.present = "TRUE"
+pciBridge6.virtualDev = "pcieRootPort"
+pciBridge6.functions = "8"
+pciBridge7.present = "TRUE"
+pciBridge7.virtualDev = "pcieRootPort"
+pciBridge7.functions = "8"
+sata0.present = "TRUE"
+sata0:0.present = "TRUE"                      # first ISO: Ubuntu 24.04 desktop live image
+sata0:0.deviceType = "cdrom-image"
+sata0:0.fileName = "/vmfs/volumes/<datastore>/iso/ubuntu-24.04.1-desktop-amd64.iso"
+sata0:1.present = "TRUE"                      # second ISO: the Display Mode Selector zip, unpacked; on macOS: hdiutil makehybrid -iso -joliet -o dms.iso <folder>
+sata0:1.deviceType = "cdrom-image"
+sata0:1.fileName = "/vmfs/volumes/<datastore>/iso/dms.iso"
+ethernet0.present = "FALSE"                   # no network needed
+# Boot: in GRUB press e, append  modprobe.blacklist=nouveau  to the linux line, F10. With nouveau bound the unbind hangs;
+# nomodeset leaves the VM screen black. Then: mount the second CD, `sudo ./displaymodeselector --listgpumodes`
+# (expect "GPU Mode: Graphics"), `sudo ./displaymodeselector --gpumode compute`, confirm twice, expect
+# "Successfully updated GPU mode to physical_display_disabled (Mode 4)". Power off, remove the passthrough device,
+# reboot the host. The card's audio function disappears in display-off mode; that is expected.

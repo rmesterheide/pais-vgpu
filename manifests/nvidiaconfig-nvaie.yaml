@@ -1,0 +1,14 @@
+# The nvidiaConfig block that vgpu-license-prep.sh patches into the PAISConfiguration `default`. Shown here as a
+# strategic-merge patch: kubectl -n <ns> patch paisconfiguration default --type merge --patch-file nvidiaconfig-nvaie.yaml
+# nvaie-license: ConfigMap with client_configuration_token.tok (from the licensing portal) and an empty gridd.conf.
+# ngc-pull: Secret kubernetes.io/dockerconfigjson for nvcr.io, user $oauthtoken, password = your NGC API key.
+spec:
+  nvidiaConfig:
+    gpuDriverType: NVAIE
+    gpuOperatorVersion: "25.10.1"
+    driver:
+      version: "580.105.8"
+    licenseConfigRef:
+      name: nvaie-license
+    imagePullSecretRef:
+      name: ngc-pull

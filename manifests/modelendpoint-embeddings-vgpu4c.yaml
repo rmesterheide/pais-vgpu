@@ -1,0 +1,20 @@
+# Embeddings endpoint on a 4 GB vGPU slice (bge-m3 on the Infinity engine, no engine override), as pais-mep-embed.sh writes it.
+apiVersion: pais.vmware.com/v1alpha1
+kind: ModelEndpoint
+metadata:
+  name: bge-m3-vgpu4c
+  namespace: <supervisor-namespace>
+  annotations:
+    pais.vmware.com/displayName: bge-m3-vgpu4c
+    ui.pais.vmware.com/model-info-secret: <registry-pull-secret>
+spec:
+  type: Embeddings
+  engine: Infinity
+  model:
+    ociRef: <registry-host:port>/models/baai/bge-m3:v1
+    pullSecrets:
+      - name: <registry-pull-secret>
+  routingName: bge-m3-vgpu4c
+  replicas: 1
+  virtualMachineClassName: a5000-vgpu-4c       # VM class with vGPU profile nvidia_rtxa5000-4c
+  storageClassName: <storage-class>

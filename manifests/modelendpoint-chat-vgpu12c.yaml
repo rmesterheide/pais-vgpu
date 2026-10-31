@@ -1,0 +1,34 @@
+# Chat endpoint on a 12 GB vGPU slice, as pais-mep-gpu.sh writes it. Replace the namespace, the registry path, the pull
+# secret name (PAIS creates <ns>-<ns>-reg-creds-<hash> from the Supervisor registry entry) and the storage class.
+apiVersion: pais.vmware.com/v1alpha1
+kind: ModelEndpoint
+metadata:
+  name: gemma-4-12b-vgpu12c
+  namespace: <supervisor-namespace>
+  annotations:
+    pais.vmware.com/displayName: gemma-4-12b-vgpu12c
+    ui.pais.vmware.com/model-info-secret: <registry-pull-secret>
+spec:
+  type: Completions
+  engine: LlamaCPP
+  model:
+    ociRef: <registry-host:port>/models/google/gemma-4-12b-qat-gguf:v1
+    pullSecrets:
+      - name: <registry-pull-secret>
+  routingName: gemma-4-12b-vgpu12c
+  replicas: 1
+  virtualMachineClassName: a5000-vgpu-12c      # VM class with vGPU profile nvidia_rtxa5000-12c, memory fully reserved
+  storageClassName: <storage-class>
+  inferenceServerCustomization:
+    engineImage: ghcr.io/ggml-org/llama.cpp:server-cuda-b11913   # the bundled llama.cpp image is CPU only
+    cliArgs:
+      - '--n-gpu-layers'
+      - '99'
+      - '--ctx-size'
+      - '16384'
+      - '--flash-attn'
+      - 'on'
+      - '--reasoning-budget'
+      - '0'
+      - '--jinja'
+      - '--metrics'
