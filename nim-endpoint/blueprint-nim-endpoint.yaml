@@ -1,0 +1,99 @@
+# Catalog item "nim-endpoint": an NVIDIA NIM as a service.
+# The order creates an Argo CD Application (the NIM on the shared VKS cluster) and a route in the PAIS gateway.
+# The consumer picks a model and a name. The NGC key is a secret in the cluster, the form does not ask for it.
+# Chart: https://github.com/rmesterheide/pais-vgpu, path nim-endpoint/chart.
+formatVersion: 2
+name: nim-endpoint
+version: 1
+inputs:
+  model:
+    type: string
+    title: Model
+    description: NVIDIA NIM validated on the lab GPU. A NIM takes the whole card (24 GB), so only one can run at a time.
+    default: nemotron-nano-8b
+    oneOf:
+      - title: Llama 3.1 Nemotron Nano 8B v1 (NIM 1.8.4, 16k context)
+        const: nemotron-nano-8b
+  routingName:
+    type: string
+    title: Model name in the gateway
+    description: 'The name your application uses in the OpenAI-compatible API call. Lower-case, e.g. team-a-nim'
+    pattern: '^[a-z0-9][a-z0-9-]{1,30}$'
+variables:
+  nimAddress: 192.168.166.80          # fixed load balancer address of the NIM service (one NIM at a time)
+  modelIds:
+    nemotron-nano-8b: nvidia/llama-3.1-nemotron-nano-8b-v1
+resources:
+  gitopsNs:
+    type: CCI.Supervisor.Namespace
+    properties:
+      existing: true
+      name: gitops-nq5p8
+  paisNs:
+    type: CCI.Supervisor.Namespace
+    properties:
+      existing: true
+      name: pais-cgky3
+  nim:
+    type: CCI.Supervisor.Resource
+    properties:
+      context: ${resource.gitopsNs.id}
+      wait:
+        fields:
+          - path: status.sync.status
+            value: Synced
+          - path: status.health.status
+            value: Healthy
+      manifest:
+        apiVersion: argoproj.io/v1alpha1
+        kind: Application
+        metadata:
+          name: nim-${input.routingName}
+          namespace: gitops-nq5p8
+          finalizers:
+            - resources-finalizer.argocd.argoproj.io      # deleting the order removes the NIM from the cluster
+        spec:
+          project: nim
+          source:
+            repoURL: https://github.com/rmesterheide/pais-vgpu.git
+            targetRevision: HEAD
+            path: nim-endpoint/chart
+            helm:
+              parameters:
+                - {name: name, value: '${input.routingName}'}
+                - {name: model, value: '${input.model}'}
+                - {name: loadBalancerIP, value: '${variable.nimAddress}'}
+          destination:
+            server: https://192.168.166.74:6443
+            namespace: nim
+          syncPolicy:
+            automated: {prune: true, selfHeal: true}
+  route:
+    type: CCI.Supervisor.Resource
+    dependsOn:
+      - nim
+    properties:
+      context: ${resource.paisNs.id}
+      manifest:
+        apiVersion: pais.vmware.com/v1alpha1
+        kind: InferenceGatewayRoute
+        metadata:
+          name: ${input.routingName}
+          namespace: pais-cgky3
+        spec:
+          type: Completions
+          engine: OpenAI
+          matches:
+            routingName: ${input.routingName}
+          backend:
+            httpBaseUrl: 'http://${variable.nimAddress}:8000/'
+            modelId: ${variable.modelIds[input.model]}
+            tls: {}
+outputs:
+  gatewayBaseUrl:
+    value: https://pais.vcf.internal/api/v1/compatibility/openai/v1
+  modelName:
+    value: ${input.routingName}
+  usage:
+    value: |-
+      export PAIS_TOKEN='<API token from the Private AI Services UI>'; curl -sk -H "Authorization: Bearer $PAIS_TOKEN" -H "Content-Type: application/json" https://pais.vcf.internal/api/v1/compatibility/openai/v1/chat/completions -d '{"model":"${input.routingName}","messages":[{"role":"user","content":"Hello"}]}'

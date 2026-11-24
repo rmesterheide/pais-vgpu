@@ -1,0 +1,17 @@
+# The NIMService resource has no field for a fixed address, so the external service is a plain one.
+# The NIM Operator labels the pods with app=<NIMService name>.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.name }}-lb
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  type: LoadBalancer
+  loadBalancerIP: {{ .Values.loadBalancerIP }}
+  selector:
+    app: {{ .Values.name }}
+  ports:
+    - name: api
+      port: 8000
+      targetPort: 8000

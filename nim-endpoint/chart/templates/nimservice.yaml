@@ -1,0 +1,31 @@
+{{- $m := include "nim.model" . | fromYaml }}
+apiVersion: apps.nvidia.com/v1alpha1
+kind: NIMService
+metadata:
+  name: {{ .Values.name }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  image:
+    repository: {{ $m.repository }}
+    tag: {{ $m.tag | quote }}
+    pullPolicy: IfNotPresent
+    pullSecrets:
+      - {{ .Values.pullSecret }}
+  authSecret: {{ .Values.authSecret }}
+  storage:
+    nimCache:
+      name: cache-{{ .Values.model }}
+      profile: {{ $m.profile }}
+  env:
+    - name: NIM_MAX_MODEL_LEN
+      value: {{ $m.maxModelLen | quote }}
+    - name: NIM_MODEL_PROFILE
+      value: {{ $m.profile }}
+  resources:
+    limits:
+      nvidia.com/gpu: {{ .Values.gpus }}
+  expose:
+    service:
+      type: ClusterIP
+      port: 8000

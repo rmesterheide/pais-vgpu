@@ -1,0 +1,21 @@
+# Set per order by the VCF Automation catalog item (Argo CD Application, helm parameters).
+name: nemotron-nano-8b          # name of the NIMService; the PAIS gateway route uses the same name
+model: nemotron-nano-8b         # key in "models" below
+loadBalancerIP: 192.168.166.80  # fixed address, the gateway route points at it
+
+# Set once by the platform team. The NGC secrets are created in the namespace by hand, never in Git.
+pullSecret: ngc-secret
+authSecret: ngc-api-secret
+storageClass: ""                # "" = cluster default
+gpus: 1
+
+# Models validated on the lab card (RTX A5000, 24 GB vGPU slice). See ../README.md for the measurements.
+models:
+  nemotron-nano-8b:
+    repository: nvcr.io/nim/nvidia/llama-3.1-nemotron-nano-8b-v1
+    tag: "1.8.4"
+    modelId: nvidia/llama-3.1-nemotron-nano-8b-v1
+    # vllm-bf16-tp1-pp1: the only profile that fits 24 GB
+    profile: 4f904d571fe60ff24695b5ee2aa42da58cb460787a968f1e8a09f5a7e862728d
+    maxModelLen: "16384"        # the KV cache holds about 19k tokens on this slice
+    cacheSize: 30Gi

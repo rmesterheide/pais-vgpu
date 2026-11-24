@@ -1,0 +1,25 @@
+{{- $m := include "nim.model" . | fromYaml }}
+# One cache per model, shared by all endpoints of that model. It is kept when an order is deleted,
+# so the next order starts without the download.
+apiVersion: apps.nvidia.com/v1alpha1
+kind: NIMCache
+metadata:
+  name: cache-{{ .Values.model }}
+  annotations:
+    argocd.argoproj.io/sync-options: Delete=false,Prune=false
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  source:
+    ngc:
+      modelPuller: {{ $m.repository }}:{{ $m.tag }}
+      pullSecret: {{ .Values.pullSecret }}
+      authSecret: {{ .Values.authSecret }}
+      model:
+        profiles:
+          - {{ $m.profile }}
+  storage:
+    pvc:
+      create: true
+      storageClass: {{ .Values.storageClass | quote }}
+      size: {{ $m.cacheSize | quote }}
+      volumeAccessMode: ReadWriteOnce

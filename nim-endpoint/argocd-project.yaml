@@ -1,0 +1,18 @@
+# Argo CD project for the catalog item nim-endpoint, in the namespace of the Argo CD instance (gitops-nq5p8).
+# Boundary: one repository, one cluster, one namespace. The project "default" of this instance is locked.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: nim
+  namespace: gitops-nq5p8
+spec:
+  description: NIM endpoints ordered through VCF Automation
+  sourceRepos:
+    - https://github.com/rmesterheide/pais-vgpu.git
+  destinations:
+    - server: https://192.168.166.74:6443      # k8s-cluster-4fffeb67b3, attached in the GitOps UI
+      namespace: nim
+  namespaceResourceWhitelist:
+    - {group: apps.nvidia.com, kind: NIMCache}
+    - {group: apps.nvidia.com, kind: NIMService}
+    - {group: "", kind: Service}
