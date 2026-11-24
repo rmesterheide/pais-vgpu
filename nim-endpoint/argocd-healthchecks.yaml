@@ -1,0 +1,43 @@
+# Health checks for the NIM Operator resources, for the Argo CD instance that rolls out nim-endpoint.
+# Without them Argo CD reports an application as Healthy as soon as the objects exist.
+# Applied as a merge patch on the ArgoCD object (spec.resourceHealthChecks); argocd-cm itself is owned by the operator.
+spec:
+  resourceHealthChecks:
+    - group: apps.nvidia.com
+      kind: NIMService
+      check: |
+        hs = {}
+        if obj.status ~= nil and obj.status.state ~= nil then
+          if obj.status.state == "Ready" then
+            hs.status = "Healthy"
+            hs.message = "NIM is ready"
+            return hs
+          end
+          if obj.status.state == "Failed" then
+            hs.status = "Degraded"
+            hs.message = "NIM failed"
+            return hs
+          end
+        end
+        hs.status = "Progressing"
+        hs.message = "Waiting for the NIM to become ready"
+        return hs
+    - group: apps.nvidia.com
+      kind: NIMCache
+      check: |
+        hs = {}
+        if obj.status ~= nil and obj.status.state ~= nil then
+          if obj.status.state == "Ready" then
+            hs.status = "Healthy"
+            hs.message = "Model is cached"
+            return hs
+          end
+          if obj.status.state == "Failed" then
+            hs.status = "Degraded"
+            hs.message = "Model download failed"
+            return hs
+          end
+        end
+        hs.status = "Progressing"
+        hs.message = "Downloading the model"
+        return hs
