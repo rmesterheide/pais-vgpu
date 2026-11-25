@@ -17,5 +17,5 @@ models:
     modelId: nvidia/llama-3.1-nemotron-nano-8b-v1
     # vllm-bf16-tp1-pp1: the only profile that fits 24 GB
     profile: 4f904d571fe60ff24695b5ee2aa42da58cb460787a968f1e8a09f5a7e862728d
-    maxModelLen: "16384"        # the KV cache holds about 19k tokens on this slice
+    maxModelLen: "12288"        # the KV cache holds about 19k tokens on this slice
     cacheSize: 30Gi
